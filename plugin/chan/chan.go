@@ -16,6 +16,7 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/cockroachdb/errors"
@@ -136,7 +137,10 @@ func NewChanTransport(nhConfig config.NodeHostConfig,
 }
 
 // Start ...
-func (ct *ChanTransport) Start() error {
+func (ct *ChanTransport) Start(did uint64) error {
+	if ct.nhConfig.DeploymentID != did {
+		panic(fmt.Sprintf("invalid deployment id, chanTransport did %d, start did %d", ct.nhConfig.DeploymentID, did))
+	}
 	acc := acceptChanConn{
 		ac:  make(chan chanConn, 1),
 		acc: make(chan struct{}),
@@ -168,7 +172,10 @@ func (ct *ChanTransport) Start() error {
 }
 
 // Close ...
-func (ct *ChanTransport) Close() error {
+func (ct *ChanTransport) Close(did uint64) error {
+	if ct.nhConfig.DeploymentID != did {
+		panic(fmt.Sprintf("invalid deployment id, chanTransport did %d, start did %d", ct.nhConfig.DeploymentID, did))
+	}
 	ct.stopper.Stop()
 	ct.connStopper.Stop()
 	return nil
@@ -179,8 +186,11 @@ func (ct *ChanTransport) Name() string {
 	return "ChanTransport"
 }
 
-func (ct *ChanTransport) getConnection(target string,
+func (ct *ChanTransport) getConnection(target string, did uint64,
 	snapshot bool) (chanConn, error) {
+	if ct.nhConfig.DeploymentID != did {
+		panic(fmt.Sprintf("invalid deployment id, chanTransport did %d, start did %d", ct.nhConfig.DeploymentID, did))
+	}
 	listeningMu.Lock()
 	defer listeningMu.Unlock()
 	acc, ok := listening[target]
@@ -197,9 +207,9 @@ func (ct *ChanTransport) getConnection(target string,
 }
 
 // GetConnection ...
-func (ct *ChanTransport) GetConnection(ctx context.Context,
+func (ct *ChanTransport) GetConnection(ctx context.Context, did uint64,
 	target string) (raftio.IConnection, error) {
-	cc, err := ct.getConnection(target, false)
+	cc, err := ct.getConnection(target, did, false)
 	if err != nil {
 		return nil, err
 	}
@@ -207,9 +217,9 @@ func (ct *ChanTransport) GetConnection(ctx context.Context,
 }
 
 // GetSnapshotConnection ...
-func (ct *ChanTransport) GetSnapshotConnection(ctx context.Context,
+func (ct *ChanTransport) GetSnapshotConnection(ctx context.Context, did uint64,
 	target string) (raftio.ISnapshotConnection, error) {
-	cc, err := ct.getConnection(target, true)
+	cc, err := ct.getConnection(target, did, true)
 	if err != nil {
 		return nil, err
 	}

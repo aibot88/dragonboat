@@ -83,14 +83,14 @@ type ITransport interface {
 	// Start launches the transport module and make it ready to start sending and
 	// receiving Raft messages. If necessary, ITransport may take this opportunity
 	// to start listening for incoming data.
-	Start() error
+	Start(did uint64) error
 	// Close closes the transport module.
-	Close() error
+	Close(did uint64) error
 	// GetConnection returns an IConnection instance used for sending messages
 	// to the specified target NodeHost instance.
-	GetConnection(ctx context.Context, target string) (IConnection, error)
+	GetConnection(ctx context.Context, did uint64, target string) (IConnection, error)
 	// GetSnapshotConnection returns an ISnapshotConnection instance used for
 	// sending snapshot chunks to the specified target NodeHost instance.
-	GetSnapshotConnection(ctx context.Context,
+	GetSnapshotConnection(ctx context.Context, did uint64,
 		target string) (ISnapshotConnection, error)
 }

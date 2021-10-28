@@ -159,17 +159,17 @@ func NewNOOPTransport(nhConfig config.NodeHostConfig,
 }
 
 // Start starts the NOOPTransport instance.
-func (g *NOOPTransport) Start() error {
+func (g *NOOPTransport) Start(did uint64) error {
 	return nil
 }
 
 // Close closes the NOOPTransport instance.
-func (g *NOOPTransport) Close() error {
+func (g *NOOPTransport) Close(did uint64) error {
 	return nil
 }
 
 // GetConnection returns a connection.
-func (g *NOOPTransport) GetConnection(ctx context.Context,
+func (g *NOOPTransport) GetConnection(ctx context.Context, did uint64,
 	target string) (raftio.IConnection, error) {
 	atomic.AddUint64(&g.tryConnect, 1)
 	if g.connReq.Fail() {
@@ -180,7 +180,7 @@ func (g *NOOPTransport) GetConnection(ctx context.Context,
 }
 
 // GetSnapshotConnection returns a snapshot connection.
-func (g *NOOPTransport) GetSnapshotConnection(ctx context.Context,
+func (g *NOOPTransport) GetSnapshotConnection(ctx context.Context, did uint64,
 	target string) (raftio.ISnapshotConnection, error) {
 	atomic.AddUint64(&g.tryConnect, 1)
 	if g.connReq.Fail() {

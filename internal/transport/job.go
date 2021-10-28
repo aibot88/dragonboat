@@ -116,7 +116,7 @@ func (j *job) close() {
 }
 
 func (j *job) connect(addr string) error {
-	conn, err := j.transport.GetSnapshotConnection(j.ctx, addr)
+	conn, err := j.transport.GetSnapshotConnection(j.ctx, j.deploymentID, addr)
 	if err != nil {
 		plog.Errorf("failed to get a job to %s, %v", addr, err)
 		return err

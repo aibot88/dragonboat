@@ -322,7 +322,7 @@ type TCPConnection struct {
 var _ raftio.IConnection = (*TCPConnection)(nil)
 
 // NewTCPConnection creates and returns a new TCPConnection instance.
-func NewTCPConnection(conn net.Conn,
+func NewTCPConnection(conn net.Conn, did uint64,
 	rb *ratelimit.Bucket, wb *ratelimit.Bucket, encrypted bool) *TCPConnection {
 	return &TCPConnection{
 		conn:      newConnection(conn, rb, wb),
@@ -356,21 +356,23 @@ func (c *TCPConnection) SendMessageBatch(batch pb.MessageBatch) error {
 // TCPSnapshotConnection is the connection for sending raft snapshot chunks to
 // remote nodes.
 type TCPSnapshotConnection struct {
-	conn      net.Conn
-	header    []byte
-	encrypted bool
+	conn         net.Conn
+	header       []byte
+	encrypted    bool
+	deploymentID uint64
 }
 
 var _ raftio.ISnapshotConnection = (*TCPSnapshotConnection)(nil)
 
 // NewTCPSnapshotConnection creates and returns a new snapshot connection.
-func NewTCPSnapshotConnection(conn net.Conn,
+func NewTCPSnapshotConnection(conn net.Conn, did uint64,
 	rb *ratelimit.Bucket, wb *ratelimit.Bucket,
 	encrypted bool) *TCPSnapshotConnection {
 	return &TCPSnapshotConnection{
-		conn:      newConnection(conn, rb, wb),
-		header:    make([]byte, requestHeaderSize),
-		encrypted: encrypted,
+		deploymentID: did,
+		conn:         newConnection(conn, rb, wb),
+		header:       make([]byte, requestHeaderSize),
+		encrypted:    encrypted,
 	}
 }
 
@@ -389,6 +391,9 @@ func (c *TCPSnapshotConnection) Close() {
 
 // SendChunk sends the specified snapshot chunk to remote node.
 func (c *TCPSnapshotConnection) SendChunk(chunk pb.Chunk) error {
+	if c.deploymentID != chunk.DeploymentId {
+		plog.Panicf("invalid delopyment ID, connection did %d, chunk did %d", c.deploymentID, chunk.DeploymentId)
+	}
 	header := requestHeader{method: snapshotType}
 	sz := chunk.Size()
 	buf := make([]byte, sz)
@@ -435,7 +440,10 @@ func NewTCPTransport(nhConfig config.NodeHostConfig,
 }
 
 // Start starts the TCP transport module.
-func (t *TCP) Start() error {
+func (t *TCP) Start(did uint64) error {
+	if t.nhConfig.DeploymentID != did {
+		plog.Panicf("invalid delopyment ID, connection did %d, start did %d", t.nhConfig.DeploymentID, did)
+	}
 	address := t.nhConfig.GetListenAddress()
 	tlsConfig, err := t.nhConfig.GetServerTLSConfig()
 	if err != nil {
@@ -486,31 +494,34 @@ func (t *TCP) Start() error {
 }
 
 // Close closes the TCP transport module.
-func (t *TCP) Close() error {
+func (t *TCP) Close(did uint64) error {
+	if t.nhConfig.DeploymentID != did {
+		plog.Panicf("invalid delopyment ID, connection did %d, stop did %d", t.nhConfig.DeploymentID, did)
+	}
 	t.stopper.Stop()
 	t.connStopper.Stop()
 	return nil
 }
 
 // GetConnection returns a new raftio.IConnection for sending raft messages.
-func (t *TCP) GetConnection(ctx context.Context,
+func (t *TCP) GetConnection(ctx context.Context, did uint64,
 	target string) (raftio.IConnection, error) {
-	conn, err := t.getConnection(ctx, target)
+	conn, err := t.getConnection(ctx, did, target)
 	if err != nil {
 		return nil, err
 	}
-	return NewTCPConnection(conn, nil, nil, t.encrypted), nil
+	return NewTCPConnection(conn, did, nil, nil, t.encrypted), nil
 }
 
 // GetSnapshotConnection returns a new raftio.IConnection for sending raft
 // snapshots.
-func (t *TCP) GetSnapshotConnection(ctx context.Context,
+func (t *TCP) GetSnapshotConnection(ctx context.Context, did uint64,
 	target string) (raftio.ISnapshotConnection, error) {
-	conn, err := t.getConnection(ctx, target)
+	conn, err := t.getConnection(ctx, did, target)
 	if err != nil {
 		return nil, err
 	}
-	return NewTCPSnapshotConnection(conn,
+	return NewTCPSnapshotConnection(conn, did,
 		t.readBucket, t.writeBucket, t.encrypted), nil
 }
 
@@ -577,8 +588,11 @@ func setTCPConn(conn *net.TCPConn) error {
 
 // FIXME:
 // context.Context is ignored
-func (t *TCP) getConnection(ctx context.Context,
+func (t *TCP) getConnection(ctx context.Context, did uint64,
 	target string) (net.Conn, error) {
+	if t.nhConfig.DeploymentID != did {
+		plog.Panicf("invalid delopyment ID, getConnection did %d, stop did %d", t.nhConfig.DeploymentID, did)
+	}
 	timeout := time.Duration(dialTimeoutSecond) * time.Second
 	conn, err := net.DialTimeout("tcp", target, timeout)
 	if err != nil {

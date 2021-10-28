@@ -228,9 +228,9 @@ func NewTransport(nhConfig config.NodeHostConfig,
 	t.trans = create(nhConfig, t.handleRequest, chunks.Add)
 	t.chunks = chunks
 	plog.Infof("transport type: %s", t.trans.Name())
-	if err := t.trans.Start(); err != nil {
+	if err := t.trans.Start(nhConfig.DeploymentID); err != nil {
 		plog.Errorf("transport failed to start %v", err)
-		if cerr := t.trans.Close(); cerr != nil {
+		if cerr := t.trans.Close(nhConfig.DeploymentID); cerr != nil {
 			plog.Errorf("failed to close the transport module %v", cerr)
 		}
 		return nil, err
@@ -289,7 +289,7 @@ func (t *Transport) Close() error {
 	t.cancel()
 	t.stopper.Stop()
 	t.chunks.Close()
-	return t.trans.Close()
+	return t.trans.Close(t.nhConfig.DeploymentID)
 }
 
 // GetCircuitBreaker returns the circuit breaker used for the specified
@@ -419,7 +419,7 @@ func (t *Transport) connectAndProcess(remoteHost string,
 	consecFailures := breaker.ConsecFailures()
 	if err := func() error {
 		plog.Debugf("%s is trying to connect to %s", t.sourceID, remoteHost)
-		conn, err := t.trans.GetConnection(t.ctx, remoteHost)
+		conn, err := t.trans.GetConnection(t.ctx, t.nhConfig.DeploymentID, remoteHost)
 		if err != nil {
 			plog.Errorf("Nodehost %s failed to get a connection to %s, %v",
 				t.sourceID, remoteHost, err)
