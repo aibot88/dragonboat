@@ -53,7 +53,7 @@ type ChunkHandler func(pb.Chunk) bool
 // instances in use.
 type IConnection interface {
 	// Close closes the IConnection instance.
-	Close()
+	Close(uint64)
 	// SendMessageBatch sends the specified message batch to the target. It is
 	// recommended to deliver the message batch to the target in order to enjoy
 	// best possible performance, but out of order delivery is allowed at the
@@ -66,7 +66,7 @@ type IConnection interface {
 // NodeHost instance.
 type ISnapshotConnection interface {
 	// Close closes the ISnapshotConnection instance.
-	Close()
+	Close(uint64)
 	// SendChunk sends the snapshot chunk to the target. It is
 	// recommended to have the snapshot chunk delivered in order for the best
 	// performance, but out of order delivery is allowed at the cost of reduced

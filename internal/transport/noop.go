@@ -89,7 +89,7 @@ type NOOPConnection struct {
 }
 
 // Close closes the NOOPConnection instance.
-func (c *NOOPConnection) Close() {
+func (c *NOOPConnection) Close(did uint64) {
 }
 
 // SendMessageBatch return ErrRequestedToFail when requested.
@@ -110,7 +110,7 @@ type NOOPSnapshotConnection struct {
 }
 
 // Close closes the NOOPSnapshotConnection.
-func (c *NOOPSnapshotConnection) Close() {
+func (c *NOOPSnapshotConnection) Close(did uint64) {
 }
 
 // SendChunk returns ErrRequestedToFail when requested.

@@ -317,6 +317,7 @@ type TCPConnection struct {
 	header    []byte
 	payload   []byte
 	encrypted bool
+	did       uint64
 }
 
 var _ raftio.IConnection = (*TCPConnection)(nil)
@@ -329,11 +330,15 @@ func NewTCPConnection(conn net.Conn, did uint64,
 		header:    make([]byte, requestHeaderSize),
 		payload:   make([]byte, perConnBufSize),
 		encrypted: encrypted,
+		did:       did,
 	}
 }
 
 // Close closes the TCPConnection instance.
-func (c *TCPConnection) Close() {
+func (c *TCPConnection) Close(did uint64) {
+	if c.did != did {
+		plog.Panicf("conflict deploymentID, connection did %d, close did %d", c.did, did)
+	}
 	if err := c.conn.Close(); err != nil {
 		plog.Errorf("failed to close the connection %v", err)
 	}
@@ -341,6 +346,9 @@ func (c *TCPConnection) Close() {
 
 // SendMessageBatch sends a raft message batch to remote node.
 func (c *TCPConnection) SendMessageBatch(batch pb.MessageBatch) error {
+	if c.did != batch.DeploymentId {
+		plog.Panicf("conflict deploymentID, connection did %d, SendMessageBatch did %d", c.did, batch.DeploymentId)
+	}
 	header := requestHeader{method: raftType}
 	sz := batch.SizeUpperLimit()
 	var buf []byte
@@ -356,10 +364,10 @@ func (c *TCPConnection) SendMessageBatch(batch pb.MessageBatch) error {
 // TCPSnapshotConnection is the connection for sending raft snapshot chunks to
 // remote nodes.
 type TCPSnapshotConnection struct {
-	conn         net.Conn
-	header       []byte
-	encrypted    bool
-	deploymentID uint64
+	conn      net.Conn
+	header    []byte
+	encrypted bool
+	did       uint64
 }
 
 var _ raftio.ISnapshotConnection = (*TCPSnapshotConnection)(nil)
@@ -369,15 +377,18 @@ func NewTCPSnapshotConnection(conn net.Conn, did uint64,
 	rb *ratelimit.Bucket, wb *ratelimit.Bucket,
 	encrypted bool) *TCPSnapshotConnection {
 	return &TCPSnapshotConnection{
-		deploymentID: did,
-		conn:         newConnection(conn, rb, wb),
-		header:       make([]byte, requestHeaderSize),
-		encrypted:    encrypted,
+		did:       did,
+		conn:      newConnection(conn, rb, wb),
+		header:    make([]byte, requestHeaderSize),
+		encrypted: encrypted,
 	}
 }
 
 // Close closes the snapshot connection.
-func (c *TCPSnapshotConnection) Close() {
+func (c *TCPSnapshotConnection) Close(did uint64) {
+	if c.did != did {
+		plog.Panicf("conflict deploymentID, connection did %d, close did %d", c.did, did)
+	}
 	defer func() {
 		if err := c.conn.Close(); err != nil {
 			plog.Debugf("failed to close the connection %v", err)
@@ -391,8 +402,8 @@ func (c *TCPSnapshotConnection) Close() {
 
 // SendChunk sends the specified snapshot chunk to remote node.
 func (c *TCPSnapshotConnection) SendChunk(chunk pb.Chunk) error {
-	if c.deploymentID != chunk.DeploymentId {
-		plog.Panicf("invalid delopyment ID, connection did %d, chunk did %d", c.deploymentID, chunk.DeploymentId)
+	if c.did != chunk.DeploymentId {
+		plog.Panicf("invalid delopyment ID, connection did %d, chunk did %d", c.did, chunk.DeploymentId)
 	}
 	header := requestHeader{method: snapshotType}
 	sz := chunk.Size()

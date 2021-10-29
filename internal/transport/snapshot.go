@@ -169,7 +169,7 @@ func (t *Transport) processSnapshot(c *job, addr string) {
 			t.metrics.snapshotCnnectionFailure()
 			return err
 		}
-		defer c.close()
+		defer c.close(c.deploymentID)
 		breaker.Success()
 		if successes == 0 || consecFailures > 0 {
 			plog.Debugf("snapshot stream to %s (%s) established",

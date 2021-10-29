@@ -108,7 +108,7 @@ func TestKeepSendingChunksUsingFailedJobWillNotBlock(t *testing.T) {
 	default:
 		t.Fatalf("failed chan not closed")
 	}
-	c.close()
+	c.close(c.deploymentID)
 }
 
 func testSpecialChunkCanStopTheProcessLoop(t *testing.T,

@@ -425,7 +425,7 @@ func (t *Transport) connectAndProcess(remoteHost string,
 				t.sourceID, remoteHost, err)
 			return err
 		}
-		defer conn.Close()
+		defer conn.Close(t.nhConfig.DeploymentID)
 		breaker.Success()
 		if successes == 0 || consecFailures > 0 {
 			plog.Debugf("message streaming to %s established", remoteHost)

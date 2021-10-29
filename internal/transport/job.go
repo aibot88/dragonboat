@@ -109,9 +109,12 @@ func newJob(ctx context.Context,
 	return j
 }
 
-func (j *job) close() {
+func (j *job) close(did uint64) {
+	if j.deploymentID != did {
+		plog.Panicf("conflict deploymentID, job's did, close did", j.deploymentID, did)
+	}
 	if j.conn != nil {
-		j.conn.Close()
+		j.conn.Close(did)
 	}
 }
 
