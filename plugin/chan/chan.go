@@ -72,7 +72,7 @@ type ChanConnection struct {
 }
 
 // Close ...
-func (cc *ChanConnection) Close() {
+func (cc *ChanConnection) Close(did uint64) {
 	close(cc.cc.senderClosed)
 }
 
@@ -96,7 +96,7 @@ type ChanSSConnection struct {
 }
 
 // Close ...
-func (csc *ChanSSConnection) Close() {
+func (csc *ChanSSConnection) Close(did uint64) {
 	close(csc.cc.senderClosed)
 }
 
