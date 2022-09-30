@@ -1,6 +1,7 @@
 /build
 **/checkdisk
 /multiraft-monkey-testing
+/.idea
 *safe_to_delete*
 *safe-to-delete*
 out.txt
