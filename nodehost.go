@@ -1494,10 +1494,17 @@ func (nh *NodeHost) bootstrapCluster(initialMembers map[uint64]Target,
 		return nil, false, err
 	}
 	if !bi.Validate(initialMembers, join, smType) {
-		plog.Errorf("bootstrap info validation failed, %s, %v, %t, %v, %t",
+		plog.Warningf("bootstrap info validation failed, %s, %v, %t, %v, %t",
 			dn(cfg.ClusterID, cfg.NodeID),
 			bi.Addresses, bi.Join, initialMembers, join)
-		return nil, false, ErrInvalidClusterSettings
+		plog.Warningf("regenerate bootstrap info, %v, %+v, ", smType, initialMembers)
+		backNodeID := cfg.NodeID + BytesToUint64([]byte(".back_up"))
+		err := nh.mu.logdb.SaveBootstrapInfo(cfg.ClusterID, backNodeID, bi)
+		bi = pb.NewBootstrapInfo(join, smType, initialMembers)
+		err = nh.mu.logdb.SaveBootstrapInfo(cfg.ClusterID, cfg.NodeID, bi)
+		if err != nil {
+			return nil, false, err
+		}
 	}
 	return bi.Addresses, !bi.Join, nil
 }
@@ -2151,4 +2158,13 @@ func panicNow(err error) {
 	}
 	plog.Panicf("%+v", err)
 	panic(err)
+}
+
+func BytesToUint64(b []byte) uint64 {
+	_ = b[7]
+	var res uint64
+	for i := 0; i < 8; i++ {
+		res |= uint64(b[i] << (8 * i))
+	}
+	return res
 }
